@@ -25,7 +25,6 @@ namespace go2HB_console
         public string serviceName = "go2HB";
         private readonly Timer _timer;
         private JsonRecieve recieveJson;
-        private Json send;
         private Config cfgFile;
 
         public go2HB()
@@ -70,7 +69,8 @@ namespace go2HB_console
         {
 #if DEBUG
             Console.WriteLine("Checking for work");
-            if(counter != 3)
+            
+            if (counter != 3)
             {
                 counter++;
             }
@@ -80,16 +80,21 @@ namespace go2HB_console
             }
 
 #endif
-            if (DiskFlag == 1)
+            if (DiskFlag == 1) // Samo pri pokretanju 
             {
                 DiskFlag = 0;
                 GetFreeSpace();
+                cfgFile.ram = Int32.Parse(GetTotalRAM());
+                cfgFile.cpuID = GetCPUID();
+                cfgFile.boxSN = GetSerialNumber();
             }
             if (SendJson() != -1)
             {
                 if (recieveJson != null)
                     ExecuteCommand();
             }
+
+            
 
 
 
@@ -148,11 +153,29 @@ namespace go2HB_console
 
             return format[1].Trim();
         }
+        public string GetTotalRAM()
+        {
+            var cliProcess = new Process()
+            {
+                StartInfo = new ProcessStartInfo("wmic", "os get TotalVisibleMemorySize")
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true
+                }
+            };
+            cliProcess.Start();
+            string cliOut = cliProcess.StandardOutput.ReadToEnd();
+            cliProcess.WaitForExit();
+            cliProcess.Close();
+            string[] format = cliOut.Split('\n');
 
+            return format[1].Trim();
+        }
         private int SendJson()
         {
-            send = new Json(cfgFile, disk);
+            Json send = new Json(cfgFile, disk);
             string json = JsonConvert.SerializeObject(send);
+            Console.WriteLine("Hehehe ! "+ json);
             int flag = 0;
             //Try connecting to server1
             flag = HandlePostRequest(json, "http://" + cfgFile.serverIP + ":" + cfgFile.server1port + cfgFile.apiPath);
@@ -172,6 +195,8 @@ namespace go2HB_console
         private void CheckConfig()
         {
             cfgFile = new Config();
+            //Read system variables
+            
             if (File.Exists(filePath + configName))
             {
                 ReadConfig();
@@ -240,9 +265,6 @@ namespace go2HB_console
                 }
                 line = sw.ReadLine();
             }
-            cfgFile.cpuID = GetCPUID();
-            cfgFile.boxSN = GetSerialNumber();
-
         }
 
 
@@ -392,6 +414,7 @@ namespace go2HB_console
             public string type;
             public string go2id;
             public string boxID;
+            public int ram;
 
             public Config()
             {
@@ -424,6 +447,7 @@ namespace go2HB_console
             public string cpuID { get; set; }
             public string boxSN { get; set; }
 
+            public int RAM { get; set; }
             public Json(Config cfgFile, long disk)
             {
 
@@ -442,6 +466,7 @@ namespace go2HB_console
                 boxId = cfgFile.boxID;
                 cpuID = cfgFile.cpuID;
                 boxSN = cfgFile.boxSN;
+                RAM = cfgFile.ram;
             }
         }
     }
